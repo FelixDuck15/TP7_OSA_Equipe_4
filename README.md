@@ -7,3 +7,4 @@ TP7 de l'équipe 4 pour le cours d'Ordinateur: Structure et Application (OSA). O
 ## Fichier à l'intérieur du Github
 * README
 * Procès-verbaux 
+* TP7_calculatrice (Code du TP7)
