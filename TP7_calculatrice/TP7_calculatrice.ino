@@ -119,6 +119,44 @@ extern "C" __attribute__((naked)) int soustraction(int a, int b) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int multiplication(int a, int b) {
   asm volatile(
+    "PUSH {R4, R5, LR} \n"
+
+
+    "EOR R5, R0, R1 \n" // ou exclusif. si le bit de signe est le meme -> + 
+                        // sinon -> -
+
+    //Valeur absolu de R0
+    "CMP R0, #0 \n"
+    "RSBLT R0, R0, #0 \n" //R0 = -R0 si R0 < 0
+
+    //Valeur absolu de R1
+    "CMP R1, #0 \n"
+    "RSBLT R1, R1, #0 \n" //R1 = -R1 si R1 < 0
+
+
+    "MOV R4, #0 \n" //R4 = 0
+
+    // boucle principale pour la multiplication
+    "boucle_mul: \n" 
+    "CMP R1, #0 \n" //Condition pour mettre fin a la boucle R1 == 0
+    "BEQ fin_mul \n"
+    "ADD R4, R4, R0 \n" // on ajoute R0 dans R4, R1 fois (R4 = R1 * R2)
+
+    "SUB R1, R1, #1 \n" // R1 = R1 - 1
+    "B boucle_mul \n"
+
+    "fin_mul: \n"
+
+
+    "MOV R0, R4 \n" // R0 = R4 (R0, variable de retour)
+
+    "CMP R5, #0 \n" // le signe de R5 sera le signe de la réponse (car EOR)
+    "BGE retour \n" 
+    "RSB R0, R0, #0 \n"
+
+
+    "retour \n"
+    "POP {R4, R5, LR} \n"
     "BX    LR              \n"   // à compléter
     ".ltorg                \n"
   );
