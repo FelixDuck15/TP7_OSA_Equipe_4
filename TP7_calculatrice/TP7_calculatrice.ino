@@ -164,14 +164,55 @@ extern "C" __attribute__((naked)) int multiplication(int a, int b) {
 
 /* -------------------------------------------------------------------
  * B4. Division (SDIV et UDIV interdites)
- * Responsable : ...
+ * Responsable : Serena Saffiedine
  * R0, R1 (entrée) : dividende, diviseur (non nul)
  * R0 (sortie) : quotient tronqué vers zéro (-7 / 2 = -3)
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int division(int a, int b) {
   asm volatile(
-    "BX    LR              \n"   // à compléter
-    ".ltorg                \n"
+   extern "C" __attribute__((naked)) int division(int a, int b) {
+  asm volatile(
+
+    // Vérification de la division par zéro
+    "CMP R1, #0             \n" // Compare le diviseur à zéro
+    "BEQ division_zero      \n" //Si R1 =, branche vers l'erreur
+
+    // Signe du résultat
+    "EOR R3, R0, R1         \n" // OU exclusif : signe négatif si les opérantes ont des signes différents
+    
+    // Valeur absolue du dividende (R0)
+    "MOV R2, R0             \n" // Copie le dividende dans R2
+    "CMP R2, #0             \n" // Compare à zéro
+    "BGE division_abs1      \n" // Si R2 >= 0, garde la même valeur
+    "RSB R2, R2, #0         \n" // Sinon transforme R2 en valeur absolue
+    
+    // Valeur absolue du diviseur 
+    "division_abs1:         \n"
+    "CMP R1, #0             \n" // Compare à zéro
+    "BGE division_abs2      \n" // Si R1 >= 0, garde la même valeur
+    "RSB R1, R1, #0         \n" // Sinon transforme R1 en valeur absolue
+
+    "division_abs2:         \n"
+    "MOV R0, #0             \n" // Met le quotient à zéro
+    
+    // Division par soustraction sucessives
+    "division_boucle:       \n" 
+    "CMP R2, R1             \n"  // Compare la valeur restante au diviseur
+    "BLT division_fin       \n"  // Si R2 < R1, on quitte la boucle
+    "SUB R2, R2, R1         \n"  // Soustrait le diviseur
+    "ADD R0, R0, #1         \n" // Incrémente le quotient
+    "B division_boucle      \n" //Recommence la boucle
+    
+    // Application du signe au quotient
+    "division_fin:          \n" 
+    "CMP R3, #0             \n" // Vérifie le signe du résultat
+    "BGE division_retour    \n" // Si positif, conserve le quotient
+    "RSB R0, R0, #0         \n" // Sinon, rend le quotient négatif
+
+    "division_retour:       \n"
+    "BX LR                  \n" // Retourne à l'adresse contenu dans LR
+
+    ".ltorg                 \n"
   );
 }
 
