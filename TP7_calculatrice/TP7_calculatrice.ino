@@ -45,13 +45,9 @@ volatile int  saisie_invalide;       // 1 si un opérande est mal formé (A1)
 #define ERR_SAISIE           4
 
 /* Couleurs passées à led_allumer() (critère F1) */
-#define ROUGE  0
-#define VERT   1
-#define BLEU   2
-
-#define PO_DIRSET "0x50000518"
-#define PO_OUTSET "0x50000508"
-#define PO_OUTCLR "0x5000050C"
+#define ROUGE  (1UL << 24)
+#define VERT   (1UL << 16)
+#define BLEU   (1UL << 6)
 
 /* ===================================================================
  * FONCTIONS EN ASSEMBLEUR — À COMPLÉTER
@@ -89,7 +85,7 @@ extern "C" __attribute__((naked)) void convertir_entier(int valeur, volatile cha
 
 /* -------------------------------------------------------------------
  * B1. Addition
- * Responsable : ...
+ * Responsable : Félix-Antoine Guimont
  * R0, R1 (entrée) : opérandes ; R0 (sortie) : R0 + R1
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int addition(int a, int b) {
@@ -198,14 +194,17 @@ extern "C" __attribute__((naked)) int valider(int a, int operateur, int b) {
 
 /* -------------------------------------------------------------------
  * F1. LED par MMIO — initialisation
- * Responsable : ...
+ * Responsable : Félix-Antoine Guimont
  * Configure en sortie les trois broches de la LED RGB (registre DIRSET)
  * et éteint la LED.
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) void led_init(void) {
   asm volatile(
-    "BX    LR              \n"   // à compléter
-    ".ltorg                \n"
+      "ldr r0, =0x50000518 \n"  // Charge l'adresse du registre P0_DIRSET dans R0
+      "ldr r1, =0x01010040     \n"  // Masque combiné pour les broches 24, 16 et 6
+      "str R1, [R0]        \n"  // Écrit la valeur de R1 à l'adresse pointée par R0
+      "bx lr              \n"
+      ".ltorg              \n"
   );
 }
 
@@ -217,10 +216,10 @@ extern "C" __attribute__((naked)) void led_init(void) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) void led_allumer(int couleur) {
   asm volatile(
-      "ldr r1, =" PO_OUTCLR " \n"   // Charge l'adresse matérielle de ADR_OUTCLR dans le registre r1
+      "ldr r1, =0x5000050C \n"   // Charge l'adresse matérielle de ADR_OUTCLR dans le registre r1
       "str r0, [r1] \n"             // Écrit la valeur 'couleur' (r0) à l'adresse pointée par r1
-      "bx lr \n"                    // Retourne de la fonction
-      ".ltorg \n"                   // Indispensable pour stocker la constante 0x5000050C en mémoire
+      "bx lr \n"
+      ".ltorg \n"
   );
 }
 
@@ -230,10 +229,11 @@ extern "C" __attribute__((naked)) void led_allumer(int couleur) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) void led_eteindre(void) {
   asm volatile(
-    "ldr r1, =" PO_OUTSET " \n"   // Charge l'adresse matérielle de ADR_OUTCLR dans le registre r1 
-    "str r0, [r1] \n"             // Écrit la valeur 'couleur' (r0) à l'adresse pointée par r1
-    "bx lr \n"                    // Retourne de la fonction
-    ".ltorg \n"                   // Indispensable pour stocker la constante 0x5000050C en mémoire
+      "ldr r0, =0x50000508 \n"   // Charge l'adresse matérielle de ADR_OUTCLR dans le registre r1 
+      "ldr r1, =0x01010040 \n"   // Charge le masque combiné (Rouge, Vert, Bleu)
+      "str r1, [r0] \n"             // Écrit la valeur 'couleur' (r0) à l'adresse pointée par r1
+      "bx lr \n"
+      ".ltorg \n"                   // Indispensable pour stocker la constante 0x5000050C en mémoire
   );
 }
 
