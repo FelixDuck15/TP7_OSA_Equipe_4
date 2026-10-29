@@ -114,7 +114,7 @@ extern "C" __attribute__((naked)) int soustraction(int a, int b) {
 
 /* -------------------------------------------------------------------
  * B3. Multiplication (MUL et MLA interdites)
- * Responsable : ...
+ * Responsable : Hugo Savard
  * R0, R1 (entrée) : opérandes ; R0 (sortie) : R0 × R1
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int multiplication(int a, int b) {
@@ -211,7 +211,7 @@ extern "C" __attribute__((naked)) void led_init(void) {
 
 /* -------------------------------------------------------------------
  * F1. LED par MMIO — allumer une couleur
- * Responsable : ...
+ * Responsable : Félix-Antoine Guimont
  * R0 (entrée) : couleur (ROUGE = 0, VERT = 1, BLEU = 2)
  * Éteint les deux autres couleurs et allume celle qui est demandée.
  * ------------------------------------------------------------------- */
@@ -226,7 +226,7 @@ extern "C" __attribute__((naked)) void led_allumer(int couleur) {
 
 /* -------------------------------------------------------------------
  * F1. LED par MMIO — tout éteindre
- * Responsable : ...
+ * Responsable : Félix-Antoine Guimont
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) void led_eteindre(void) {
   asm volatile(
