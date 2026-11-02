@@ -91,19 +91,20 @@ extern "C" __attribute__((naked)) void convertir_entier(int valeur, volatile cha
 extern "C" __attribute__((naked)) int addition(int a, int b) {
   asm volatile(
     "add r0, r0, r1 \n"    // Addition de "a" et "b" dans la "a"
-    "bx lr \n"   // à compléter
+    "BX LR \n"   // à compléter
     ".ltorg \n"
   );
 }
 
 /* -------------------------------------------------------------------
  * B2. Soustraction
- * Responsable : ...
+ * Responsable : Hugo Savard
  * R0, R1 (entrée) : opérandes ; R0 (sortie) : R0 − R1
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int soustraction(int a, int b) {
   asm volatile(
-    "BX    LR              \n"   // à compléter
+    "SUB R0 , R0, R1       \n"
+    "BX    LR              \n"
     ".ltorg                \n"
   );
 }
