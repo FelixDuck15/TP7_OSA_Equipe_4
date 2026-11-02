@@ -63,9 +63,41 @@ volatile int  saisie_invalide;       // 1 si un opérande est mal formé (A1)
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int convertir_ascii(volatile char *texte) {
   asm volatile(
-    "MOV   R0, #0          \n"    // à remplacer
-    "BX    LR              \n"    // Retourne de la fonction
-    ".ltorg                \n"    // Indispensable pour stocker la constante 0x5000050C en mémoire
+    "PUSH  {R4}              \n"
+    "MOVS  R1, #0            \n"   // R1 = résultat
+    "MOVS  R3, #10           \n"   // R3 = 10
+    "LDRB  R4, [R0]          \n"   // R4 = 1er caractère (sert à savoir si c'est '-')
+    "CMP   R4, #45           \n"
+    "BNE   debut             \n"
+    "ADDS  R0, R0, #1        \n"   // on saute le '-'
+    "debut:                  \n"
+    "LDRB  R2, [R0]          \n"
+    "CMP   R2, #0            \n"
+    "BEQ   invalide          \n"   // vide ou "-" seul
+    "boucle:                 \n"
+    "SUBS  R2, R2, #48       \n"   // caractère -> chiffre
+    "CMP   R2, #9            \n"
+    "BHI   invalide          \n"   // pas un chiffre
+    "MULS  R1, R3, R1        \n"   // résultat *= 10
+    "ADDS  R1, R1, R2        \n"   // résultat += chiffre
+    "ADDS  R0, R0, #1        \n"
+    "LDRB  R2, [R0]          \n"
+    "CMP   R2, #0            \n"
+    "BNE   boucle            \n"
+    "CMP   R4, #45           \n"   // le texte commençait par '-' ?
+    "BNE   fin               \n"
+    "RSBS  R1, R1, #0        \n"   // oui : résultat = -résultat
+    "fin:                    \n"
+    "MOVS  R0, R1            \n"
+    "POP   {R4}              \n"
+    "BX    LR                \n"
+    "invalide:               \n"
+    "LDR   R3, =0x5000050C   \n"
+    "MOVS  R2, #1            \n"
+    "STR   R2, [R3]          \n"   // saisie_invalide = 1
+    "MOVS  R1, #0            \n"
+    "B     fin               \n"   // on réutilise la sortie normale
+    ".ltorg                  \n"
   );
 }
 
