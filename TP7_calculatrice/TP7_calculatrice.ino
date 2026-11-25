@@ -110,8 +110,39 @@ extern "C" __attribute__((naked)) int convertir_ascii(volatile char *texte) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) void convertir_entier(int valeur, volatile char *sortie) {
   asm volatile(
-    "BX    LR              \n"   // à compléter
-    ".ltorg                \n"
+    "CMP   R0, #0            \n"
+    "BGE   ent_positif       \n"
+    "MOVS  R2, #45           \n"   // '-'
+    "STRB  R2, [R1]          \n"
+    "ADDS  R1, R1, #1        \n"
+    "RSBS  R0, R0, #0        \n"   // valeur = -valeur
+    "ent_positif:            \n"
+    "MOVS  R3, #0            \n"   // R3 = nombre de chiffres empilés
+    "ent_boucle:             \n"   // do { ... } while (valeur != 0)
+    "MOVS  R2, #0            \n"   // R2 = quotient de valeur / 10
+    "ent_div:                \n"
+    "CMP   R0, #10           \n"
+    "BLT   ent_reste         \n"
+    "SUBS  R0, R0, #10       \n"   // division par 10 par soustractions
+    "ADDS  R2, R2, #1        \n"
+    "B     ent_div           \n"
+    "ent_reste:              \n"   // R0 = reste (0 à 9) = dernier chiffre
+    "PUSH  {R0}              \n"   // les chiffres sortent à l'envers : on les empile
+    "ADDS  R3, R3, #1        \n"
+    "MOVS  R0, R2            \n"   // valeur = quotient
+    "CMP   R0, #0            \n"
+    "BNE   ent_boucle        \n"
+    "ent_ecrire:             \n"   // on dépile : le plus significatif sort en premier
+    "POP   {R0}              \n"
+    "ADDS  R0, R0, #48       \n"   // chiffre -> caractère ASCII
+    "STRB  R0, [R1]          \n"
+    "ADDS  R1, R1, #1        \n"
+    "SUBS  R3, R3, #1        \n"
+    "BNE   ent_ecrire        \n"
+    "MOVS  R0, #0            \n"
+    "STRB  R0, [R1]          \n"   // terminateur 0
+    "BX    LR                \n"
+    ".ltorg                  \n"
   );
 }
 
@@ -123,7 +154,7 @@ extern "C" __attribute__((naked)) void convertir_entier(int valeur, volatile cha
 extern "C" __attribute__((naked)) int addition(int a, int b) {
   asm volatile(
     "add r0, r0, r1 \n"    // Addition de "a" et "b" dans la "a"
-    "BX LR \n"   // à compléter
+    "BX LR \n"
     ".ltorg \n"
   );
 }
@@ -148,45 +179,43 @@ extern "C" __attribute__((naked)) int soustraction(int a, int b) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int multiplication(int a, int b) {
   asm volatile(
-    "PUSH {R4, R5, LR} \n"
-
-
-    "EOR R5, R0, R1 \n" // ou exclusif. si le bit de signe est le meme -> + 
-                        // sinon -> -
+    "PUSH {R4, R5}         \n"  //Modif du LR, pas obligatoire on ne lui touche pas
+    "EOR  R5, R0, R1       \n"   // bit 31 de R5 = signe du résultat
 
     //Valeur absolu de R0
-    "CMP R0, #0 \n"
-    "RSBLT R0, R0, #0 \n" //R0 = -R0 si R0 < 0
+    "CMP  R0, #0           \n"
+    "BGE  mul_a_pos        \n"
+    "RSBS R0, R0, #0       \n"   // |a|
+    "mul_a_pos:            \n"
 
     //Valeur absolu de R1
-    "CMP R1, #0 \n"
-    "RSBLT R1, R1, #0 \n" //R1 = -R1 si R1 < 0
+    "CMP  R1, #0           \n"
+    "BGE  mul_b_pos        \n"
+    "RSBS R1, R1, #0       \n"   // |b|
+    "mul_b_pos:            \n"
 
-
-    "MOV R4, #0 \n" //R4 = 0
+    //R4 = 0
+    "MOVS R4, #0           \n"
 
     // boucle principale pour la multiplication
-    "boucle_mul: \n" 
-    "CMP R1, #0 \n" //Condition pour mettre fin a la boucle R1 == 0
-    "BEQ fin_mul \n"
-    "ADD R4, R4, R0 \n" // on ajoute R0 dans R4, R1 fois (R4 = R1 * R2)
+    "boucle_mul:           \n"
+    "CMP  R1, #0           \n"  //Condition pour mettre fin a la boucle R1 == 0
+    "BEQ  fin_mul          \n"
+    "ADDS R4, R4, R0       \n"  // on ajoute R0 dans R4, R1 fois (R4 = R1 * R2)
 
-    "SUB R1, R1, #1 \n" // R1 = R1 - 1
-    "B boucle_mul \n"
+    "SUBS R1, R1, #1       \n"  // R1 = R1 - 1
+    "B    boucle_mul       \n"
+    "fin_mul:              \n"
 
-    "fin_mul: \n"
+    "MOVS R0, R4           \n"  // R0 = R4 (R0, variable de retour)
 
+    "CMP  R5, #0           \n"  // le signe de R5 sera le signe de la réponse (car EOR)
+    "BGE  retour           \n"
+    "RSBS R0, R0, #0       \n"
 
-    "MOV R0, R4 \n" // R0 = R4 (R0, variable de retour)
-
-    "CMP R5, #0 \n" // le signe de R5 sera le signe de la réponse (car EOR)
-    "BGE retour \n" 
-    "RSB R0, R0, #0 \n"
-
-
-    "retour \n"
-    "POP {R4, R5, LR} \n"
-    "BX    LR              \n"   // à compléter
+    "retour:               \n"
+    "POP  {R4, R5}         \n"
+    "BX   LR               \n"
     ".ltorg                \n"
   );
 }
@@ -199,8 +228,30 @@ extern "C" __attribute__((naked)) int multiplication(int a, int b) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int division(int a, int b) {
   asm volatile(
-    "BX    LR              \n"   // à compléter
-    ".ltorg                \n"
+    "EOR   R3, R0, R1        \n"   // bit 31 de R3 = signe du quotient
+    "CMP   R0, #0            \n"
+    "BGE   div_a_pos         \n"
+    "RSBS  R0, R0, #0        \n"   // |a|
+    "div_a_pos:              \n"
+    "CMP   R1, #0            \n"
+    "BGE   div_b_pos         \n"
+    "RSBS  R1, R1, #0        \n"   // |b|
+    "div_b_pos:              \n"
+    "MOVS  R2, #0            \n"   // R2 = quotient
+    "div_boucle:             \n"
+    "CMP   R0, R1            \n"
+    "BLT   div_fin           \n"   // reste < diviseur : terminé
+    "SUBS  R0, R0, R1        \n"   // on retire le diviseur
+    "ADDS  R2, R2, #1        \n"   // un de plus au quotient
+    "B     div_boucle        \n"
+    "div_fin:                \n"
+    "CMP   R3, #0            \n"
+    "BGE   div_retour        \n"
+    "RSBS  R2, R2, #0        \n"   // signes différents : quotient négatif
+    "div_retour:             \n"
+    "MOVS  R0, R2            \n"
+    "BX    LR                \n"
+    ".ltorg                  \n"
   );
 }
 
@@ -219,9 +270,50 @@ extern "C" __attribute__((naked)) int division(int a, int b) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int valider(int a, int operateur, int b) {
   asm volatile(
-    "MOV   R0, #0          \n"   // à remplacer
-    "BX    LR              \n"
-    ".ltorg                \n"
+    // 1) saisie invalide ? (priorité la plus haute)
+    "LDR   R3, =saisie_invalide \n"
+    "LDR   R3, [R3]          \n"
+    "CMP   R3, #0            \n"
+    "BNE   val_err_saisie    \n"
+    // 2) opérateur connu ? ( '+'=43  '-'=45  '*'=42  '/'=47 )
+    "CMP   R1, #43           \n"
+    "BEQ   val_op_ok         \n"
+    "CMP   R1, #45           \n"
+    "BEQ   val_op_ok         \n"
+    "CMP   R1, #42           \n"
+    "BEQ   val_op_ok         \n"
+    "CMP   R1, #47           \n"
+    "BEQ   val_op_ok         \n"
+    "B     val_err_op        \n"
+    "val_op_ok:              \n"
+    // 3) bornes : x dans [-100,100]  <=>  (x+100) dans [0,200] en non signé
+    "ADDS  R3, R0, #100      \n"
+    "CMP   R3, #200          \n"
+    "BHI   val_err_bornes    \n"
+    "ADDS  R3, R2, #100      \n"
+    "CMP   R3, #200          \n"
+    "BHI   val_err_bornes    \n"
+    // 4) division par zéro
+    "CMP   R1, #47           \n"
+    "BNE   val_ok            \n"
+    "CMP   R2, #0            \n"
+    "BEQ   val_err_zero      \n"
+    "val_ok:                 \n"
+    "MOVS  R0, #0            \n"
+    "BX    LR                \n"
+    "val_err_zero:           \n"
+    "MOVS  R0, #1            \n"
+    "BX    LR                \n"
+    "val_err_bornes:         \n"
+    "MOVS  R0, #2            \n"
+    "BX    LR                \n"
+    "val_err_op:             \n"
+    "MOVS  R0, #3            \n"
+    "BX    LR                \n"
+    "val_err_saisie:         \n"
+    "MOVS  R0, #4            \n"
+    "BX    LR                \n"
+    ".ltorg                  \n"
   );
 }
 
@@ -233,11 +325,13 @@ extern "C" __attribute__((naked)) int valider(int a, int operateur, int b) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) void led_init(void) {
   asm volatile(
-      "ldr r0, =0x50000518 \n"  // Charge l'adresse du registre P0_DIRSET dans R0
-      "ldr r1, =0x01010040     \n"  // Masque combiné pour les broches 24, 16 et 6
-      "str R1, [R0]        \n"  // Écrit la valeur de R1 à l'adresse pointée par R0
-      "bx lr              \n"
-      ".ltorg              \n"
+      "LDR r0, =0x50000518    \n"  // Charge l'adresse du registre P0_DIRSET dans R0
+      "LDR r1, =0x01010040    \n"  // Masque combiné pour les broches 24, 16 et 6
+      "STR R1, [R0]           \n"  // Écrit la valeur de R1 à l'adresse pointée par R0
+      "LDR r0, =0x50000508    \n"  // P0_OUTSET : LED à logique inversée, 1 = éteinte
+      "STR r1, [r0]           \n"  // éteint les trois couleurs
+      "BX    LR               \n"
+      ".ltorg                 \n"
   );
 }
 
@@ -249,10 +343,13 @@ extern "C" __attribute__((naked)) void led_init(void) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) void led_allumer(int couleur) {
   asm volatile(
-      "ldr r1, =0x5000050C \n"   // Charge l'adresse matérielle de ADR_OUTCLR dans le registre r1
-      "str r0, [r1] \n"             // Écrit la valeur 'couleur' (r0) à l'adresse pointée par r1
-      "bx lr \n"
-      ".ltorg \n"
+      "LDR r1, =0x50000508    \n"   // P0_OUTSET
+      "LDR r2, =0x01010040    \n"   // masque des trois couleurs
+      "STR r2, [r1]           \n"   // éteint les trois couleurs d'abord
+      "LDR r1, =0x5000050C    \n"   // P0_OUTCLR
+      "STR r0, [r1]           \n"   // allume la couleur demandée (0 = allumée)
+      "BX    LR               \n"
+      ".ltorg                 \n"
   );
 }
 
@@ -262,11 +359,11 @@ extern "C" __attribute__((naked)) void led_allumer(int couleur) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) void led_eteindre(void) {
   asm volatile(
-      "ldr r0, =0x50000508 \n"   // Charge l'adresse matérielle de ADR_OUTCLR dans le registre r1 
-      "ldr r1, =0x01010040 \n"   // Charge le masque combiné (Rouge, Vert, Bleu)
-      "str r1, [r0] \n"             // Écrit la valeur 'couleur' (r0) à l'adresse pointée par r1
-      "bx lr \n"
-      ".ltorg \n"                   // Indispensable pour stocker la constante 0x5000050C en mémoire
+      "ldr r0, =0x50000508  \n"   // Charge l'adresse matérielle de ADR_OUTCLR dans le registre r1 
+      "ldr r1, =0x01010040  \n"   // Charge le masque combiné (Rouge, Vert, Bleu)
+      "str r1, [r0]         \n"   // Écrit la valeur 'couleur' (r0) à l'adresse pointée par r1
+      "bx lr                \n"
+      ".ltorg               \n"   // Indispensable pour stocker la constante 0x5000050C en mémoire
   );
 }
 
