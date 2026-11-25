@@ -57,7 +57,7 @@ volatile int  dernier_code;           // dernier code retourné par valider()
 
 /* -------------------------------------------------------------------
  * A1. Conversion ASCII vers entier
- * Responsable : ...
+ * Responsable : Félix-Antoine Guimont
  * R0 (entrée) : adresse d'un texte terminé par 0, par exemple "-45"
  * R0 (sortie) : valeur entière signée
  * Si le texte est vide ou contient un caractère autre qu'un chiffre
@@ -103,9 +103,9 @@ extern "C" __attribute__((naked)) int convertir_ascii(volatile char *texte) {
   );
 }
 
-/* -------------------------------------------------------------------
+/* -------------------------------------------------------------------  *** VOIR ***
  * A2. Conversion entier vers ASCII
- * Responsable : ...
+ * Responsable : Hugo Savard
  * R0 (entrée) : valeur entière signée
  * R1 (entrée) : adresse du texte de sortie (texte_resultat)
  * Écrit le texte terminé par 0, par exemple "-84".
@@ -155,9 +155,9 @@ extern "C" __attribute__((naked)) void convertir_entier(int valeur, volatile cha
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int addition(int a, int b) {
   asm volatile(
-    "add r0, r0, r1 \n"    // Addition de "a" et "b" dans la "a"
-    "BX LR \n"
-    ".ltorg \n"
+    "ADD R0, R0, R1         \n"    // Addition de "a" et "b" dans la "a"
+    "BX LR                  \n"
+    ".ltorg                 \n"
   );
 }
 
@@ -168,7 +168,7 @@ extern "C" __attribute__((naked)) int addition(int a, int b) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int soustraction(int a, int b) {
   asm volatile(
-    "SUB R0 , R0, R1       \n"
+    "SUB R0, R0, R1        \n"  // Soustrait de "a" et "b" dans la "a"
     "BX    LR              \n"
     ".ltorg                \n"
   );
@@ -224,34 +224,43 @@ extern "C" __attribute__((naked)) int multiplication(int a, int b) {
 
 /* -------------------------------------------------------------------
  * B4. Division (SDIV et UDIV interdites)
- * Responsable : ...
+ * Responsable : Serena Saffiedine
  * R0, R1 (entrée) : dividende, diviseur (non nul)
  * R0 (sortie) : quotient tronqué vers zéro (-7 / 2 = -3)
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int division(int a, int b) {
   asm volatile(
-    "EOR   R3, R0, R1        \n"   // bit 31 de R3 = signe du quotient
+    // bit 31 de R3 = signe du quotient
+    "EOR   R3, R0, R1        \n"   
+
+    //Valeur absolue de R0 (a) 
     "CMP   R0, #0            \n"
-    "BGE   div_a_pos         \n"
-    "RSBS  R0, R0, #0        \n"   // |a|
+    "BGE   div_a_pos         \n"   // R0 >= 0
+    "RSBS  R0, R0, #0        \n"   // sinon R0 = -R0
+
+    //Valeur absolue de R1 (b)
     "div_a_pos:              \n"
     "CMP   R1, #0            \n"
     "BGE   div_b_pos         \n"
-    "RSBS  R1, R1, #0        \n"   // |b|
+    "RSBS  R1, R1, #0        \n"
+
+    // Division par soustractions
     "div_b_pos:              \n"
-    "MOVS  R2, #0            \n"   // R2 = quotient
+    "MOVS  R2, #0            \n"  // R2 = quotient, au départ 0
     "div_boucle:             \n"
-    "CMP   R0, R1            \n"
-    "BLT   div_fin           \n"   // reste < diviseur : terminé
-    "SUBS  R0, R0, R1        \n"   // on retire le diviseur
-    "ADDS  R2, R2, #1        \n"   // un de plus au quotient
+    "CMP   R0, R1            \n"  // reste (R0) < diviseur (R1) ?  
+    "BLT   div_fin           \n"  // reste < diviseur : terminé
+    "SUBS  R0, R0, R1        \n"  // on retire le diviseur
+    "ADDS  R2, R2, #1        \n"  // un de plus au quotient
     "B     div_boucle        \n"
+
+    // Résultat
     "div_fin:                \n"
     "CMP   R3, #0            \n"
-    "BGE   div_retour        \n"
-    "RSBS  R2, R2, #0        \n"   // signes différents : quotient négatif
+    "BGE   div_retour        \n"  // signes identiques : quotient positif
+    "RSBS  R2, R2, #0        \n"  // signes différents : quotient négatif
     "div_retour:             \n"
-    "MOVS  R0, R2            \n"
+    "MOVS  R0, R2            \n"  // R0 = valeur de retour
     "BX    LR                \n"
     ".ltorg                  \n"
   );
@@ -259,7 +268,7 @@ extern "C" __attribute__((naked)) int division(int a, int b) {
 
 /* -------------------------------------------------------------------
  * C1. Validation et exceptions
- * Responsable : ...
+ * Responsable : Félix-Antoine Guimont
  * R0 (entrée) : opérande 1
  * R1 (entrée) : code ASCII de l'opérateur ('+', '-', '*', '/'),
  *               ou 0 si l'opérateur n'a pas exactement un caractère
@@ -272,12 +281,13 @@ extern "C" __attribute__((naked)) int division(int a, int b) {
  * ------------------------------------------------------------------- */
 extern "C" __attribute__((naked)) int valider(int a, int operateur, int b) {
   asm volatile(
-    // 1) saisie invalide ? (priorité la plus haute)
+    // 1) saisie invalide
     "LDR   R3, =saisie_invalide \n"
     "LDR   R3, [R3]          \n"
     "CMP   R3, #0            \n"
     "BNE   val_err_saisie    \n"
-    // 2) opérateur connu ? ( '+'=43  '-'=45  '*'=42  '/'=47 )
+    
+    // 2) opérateur connu
     "CMP   R1, #43           \n"
     "BEQ   val_op_ok         \n"
     "CMP   R1, #45           \n"
@@ -288,13 +298,15 @@ extern "C" __attribute__((naked)) int valider(int a, int operateur, int b) {
     "BEQ   val_op_ok         \n"
     "B     val_err_op        \n"
     "val_op_ok:              \n"
-    // 3) bornes : x dans [-100,100]  <=>  (x+100) dans [0,200] en non signé
+    
+    // 3) bornes
     "ADDS  R3, R0, #100      \n"
     "CMP   R3, #200          \n"
     "BHI   val_err_bornes    \n"
     "ADDS  R3, R2, #100      \n"
     "CMP   R3, #200          \n"
     "BHI   val_err_bornes    \n"
+    
     // 4) division par zéro
     "CMP   R1, #47           \n"
     "BNE   val_ok            \n"
